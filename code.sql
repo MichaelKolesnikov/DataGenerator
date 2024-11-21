@@ -76,8 +76,9 @@ CREATE TABLE IF NOT EXISTS Variant (
 
 CREATE TABLE IF NOT EXISTS Task (
     id SERIAL PRIMARY KEY,
+    number INT CHECK (number >= 1),
     description VARCHAR,
-    price INT CHECK (price >= 0)
+    price INT CHECK (price >= 1)
 );
 
 CREATE TABLE IF NOT EXISTS TaskWithVariant (

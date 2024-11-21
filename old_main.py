@@ -14,50 +14,6 @@ DB_CONFIG = {
 }
 
 
-NUM_SCHOOLS = 40_000
-NUM_SCHOOLCHILDREN = 17 * 10 ** 6
-NUM_TEACHERS = 10**6
-TASKS_PER_VARIANT = 20
-VARIANTS_PER_SUBJECT = 10
-
-
-COUNTRY = "Россия"
-
-def create_addresses(cur):
-    addresses = []
-    final_data = []
-    for _ in range(NUM_SCHOOLS + NUM_SCHOOLCHILDREN + NUM_TEACHERS):
-        postcode = faker.postcode()
-        address = (
-            faker.street_name(),
-            faker.town(),
-            faker.street_address(),
-            postcode,
-            COUNTRY,
-        )
-        final_data.append(address)
-
-    cur.executemany(
-        "INSERT INTO Address (street, city, state, postal_code, country) VALUES (%s, %s, %s, %s, %s) RETURNING id;",
-        final_data,
-    )
-    cur.execute("SELECT id FROM Address;")
-    addresses = [row[0] for row in cur.fetchall()]
-    return addresses
-
-def create_schools(cur, addresses):
-    school_ids = []
-    for i in range(NUM_SCHOOLS):
-        school_name = f"Школа №{i + 1}"
-        address_id = addresses.pop(0)
-        cur.execute(
-            "INSERT INTO School (name, address_id) VALUES (%s, %s) RETURNING id;",
-            (school_name, address_id),
-        )
-        school_ids.append(cur.fetchone()[0])
-    return school_ids
-
-
 
 
 def create_students(cur, addresses, school_ids):
@@ -77,21 +33,6 @@ def create_students(cur, addresses, school_ids):
         student_ids.append(cur.fetchone()[0])
     return student_ids
 
-def create_teachers(cur, addresses, school_ids, subject_ids):
-    teacher_ids = []
-    for _ in range(NUM_TEACHERS):
-        teacher = (
-            faker.name(),
-            addresses.pop(0),
-            random.choice(school_ids),
-            random.choice(subject_ids),
-        )
-        cur.execute(
-            "INSERT INTO Teacher (FullName, address_id, school_id, subject_id) VALUES (%s, %s, %s, %s) RETURNING id;",
-            teacher,
-        )
-        teacher_ids.append(cur.fetchone()[0])
-    return teacher_ids
 
 def create_exams(cur, school_ids, subject_ids):
     exam_ids = []
@@ -158,16 +99,7 @@ def create_schoolchildwithexam(cur, student_ids, exam_ids, subject_ids):
     return schoolchildwithexam_ids
 
 
-def create_variants(cur, subject_ids):
-    variant_ids = []
-    for subject_id in subject_ids:
-        for i in range(VARIANTS_PER_SUBJECT):
-            cur.execute(
-                "INSERT INTO Variant (number, subject_id) VALUES (%s, %s) RETURNING id;",
-                (i + 1, subject_id),
-            )
-            variant_ids.append(cur.fetchone()[0])
-    return variant_ids
+
 
 def create_tasks_and_links(cur, variant_ids):
     task_ids = []
