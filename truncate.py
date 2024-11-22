@@ -1,7 +1,6 @@
 import psycopg2
 
-
-def main():
+def truncate():
     db_config = {
         'dbname': 'test_db',
         'user': 'root',
@@ -37,6 +36,9 @@ def main():
 
     except Exception as e:
         print(e)
+
+def main():
+    truncate()
 
 
 if __name__ == "__main__":

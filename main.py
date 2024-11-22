@@ -3,7 +3,7 @@ import os
 import random
 import json
 from multiprocessing import Pool, Manager
-from functools import partial
+from truncate import truncate
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -22,6 +22,12 @@ def measure_time(func):
         print(f"{function_name} took {elapsed_time:.4f} seconds")
         return result
     return wrapper
+
+def concatenate_subarrays(arrays):
+    result = []
+    for subarray in arrays:
+        result.extend(subarray)
+    return result
 
 # Schools
 @measure_time
@@ -193,29 +199,35 @@ def create_exams(db_config, faker: Faker, school_ids, subject_ids, start, end):
                 "insert into exam (id, timedate, school_id, subject_id) values (%s, %s, %s, %s);",
                 exam_data,
             )
+    return exam_data
 @measure_time
 def create_exams_parallel(db_config, faker: Faker, school_ids, subject_ids, school_count, num_processes):
     with Pool(processes=num_processes) as pool:
         chunk_size = school_count // num_processes
         variable_arguments = [(i * chunk_size, (i + 1) * chunk_size) for i in range(num_processes)]
         arguments = ((db_config, faker, school_ids, subject_ids, var_arg1, var_arg2) for var_arg1, var_arg2 in variable_arguments)
-        pool.starmap(create_exams, arguments)
+        result = pool.starmap(create_exams, arguments)
+    return concatenate_subarrays(result)
 
-def create_teachers(db_config, faker: Faker, subject_ids, school_ids, school_id_to_data, address_id_first, start, end):
+def create_teachers(db_config, faker: Faker, subject_ids, school_ids, school_id_to_data, city_to_exam, address_id_first, start, end):
     with psycopg2.connect(**db_config) as conn:
         with conn.cursor() as cur:
             teachers_data = []
             addresses_data = []
+            teacher_with_exam_data = []
+
             address_id = address_id_first + start
             teacher_id = start + 1
             for teacher_number in range(start, end):
                 school_id = random.choice(school_ids)
+                city, state = school_id_to_data[school_id]
+                subject_id = random.choice(subject_ids)
                 addresses_data.append(
                     (
                         address_id,
                         faker.street_name(),
-                        school_id_to_data[school_id][0],
-                        school_id_to_data[school_id][1],
+                        city,
+                        state,
                         faker.postcode(),
                         faker.country(),
                     )
@@ -226,9 +238,20 @@ def create_teachers(db_config, faker: Faker, subject_ids, school_ids, school_id_
                         faker.name(),
                         address_id,
                         school_id,
-                        random.choice(subject_ids),
+                        subject_id,
                     ]
                 )
+
+                for ex_id, sub_id in random.sample(city_to_exam[city], 10):
+                    if sub_id == subject_id:
+                        continue
+                    teacher_with_exam_data.append(
+                        (
+                            ex_id,
+                            teacher_id
+                        )
+                    )
+
                 address_id += 1
                 teacher_id += 1
                 if teacher_number % 10000 == 0:
@@ -241,8 +264,13 @@ def create_teachers(db_config, faker: Faker, subject_ids, school_ids, school_id_
                         """INSERT INTO Teacher (id, FullName, address_id, school_id, subject_id) VALUES (%s, %s, %s, %s, %s);""",
                         teachers_data,
                     )
+                    cur.executemany(
+                        "insert into teacherwithexam (exam_id, teacher_id) values (%s, %s);",
+                        teacher_with_exam_data,
+                    )
                     addresses_data.clear()
                     teachers_data.clear()
+                    teacher_with_exam_data.clear()
             if addresses_data:
                 cur.executemany(
                     "INSERT INTO Address (id, street, city, state, postal_code, country) values (%s, %s, %s, %s, %s, %s);",
@@ -252,15 +280,20 @@ def create_teachers(db_config, faker: Faker, subject_ids, school_ids, school_id_
                     """INSERT INTO Teacher (id, FullName, address_id, school_id, subject_id) VALUES (%s, %s, %s, %s, %s);""",
                     teachers_data,
                 )
+                cur.executemany(
+                    "insert into teacherwithexam (exam_id, teacher_id) values (%s, %s);",
+                    teacher_with_exam_data,
+                )
                 addresses_data.clear()
                 teachers_data.clear()
+                teacher_with_exam_data.clear()
 @measure_time
-def create_teachers_parallel(db_config, faker: Faker, teacher_count, subject_ids, school_id_to_data, address_id_first, num_processes):
+def create_teachers_parallel(db_config, faker: Faker, teacher_count, subject_ids, school_id_to_data, city_to_exam, address_id_first, num_processes):
     with Pool(processes=num_processes) as pool:
         chunk_size = teacher_count // num_processes
         variable_arguments = [(i * chunk_size, (i + 1) * chunk_size) for i in range(num_processes)]
         school_ids = list(school_id_to_data.keys())
-        arguments = ((db_config, faker, subject_ids, school_ids, school_id_to_data, address_id_first, var_arg1, var_arg2) for var_arg1, var_arg2 in variable_arguments)
+        arguments = ((db_config, faker, subject_ids, school_ids, school_id_to_data, city_to_exam, address_id_first, var_arg1, var_arg2) for var_arg1, var_arg2 in variable_arguments)
         pool.starmap(create_teachers, arguments)
     return list(range(1, teacher_count + 1))
 
@@ -330,7 +363,11 @@ def create_school_children_parallel(db_config, faker: Faker, school_children_cou
         pool.starmap(create_school_children, arguments)
     return list(range(1, school_children_count + 1))
 
+
+
 def main():
+    truncate()
+
     faker = Faker("ru_RU")
     teacher_count = int(os.getenv('TEACHER_COUNT'))
     school_count = int(os.getenv('SCHOOL_COUNT'))
@@ -356,8 +393,14 @@ def main():
             task_ids, task_id_to_task_data = create_tasks(cur, subject_id_to_name, subjects_points, number_of_variants_per_task)
             create_links_between_tasks_and_variants(cur, task_id_to_task_data, variant_id_to_subject_id, subject_id_to_name, subjects_points)
 
-    create_exams_parallel(db_config, faker, list(school_id_to_data.keys()), subject_ids, school_count, num_processes=5)
-    teacher_ids = create_teachers_parallel(db_config, faker, teacher_count, subject_ids, school_id_to_data, school_count + 1, num_processes=5)
+    exam_data = create_exams_parallel(db_config, faker, list(school_id_to_data.keys()), subject_ids, school_count, num_processes=5)
+    city_to_exam = {}
+    for exam_id, _, school_id, subject_id in exam_data:
+        city_ = school_id_to_data[school_id][0]
+        if city_ not in city_to_exam:
+            city_to_exam[city_] = []
+        city_to_exam[city_].append([exam_id, subject_id])
+    teacher_ids = create_teachers_parallel(db_config, faker, teacher_count, subject_ids, school_id_to_data, city_to_exam, school_count + 1, num_processes=5)
     school_children_ids = create_school_children_parallel(db_config, faker, school_children_count, school_id_to_data, school_count + teacher_count + 1, num_processes=5)
 
     return 0
