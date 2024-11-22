@@ -23,9 +23,9 @@ def measure_time(func):
         return result
     return wrapper
 
-
+# Schools
 @measure_time
-def create_addresses(cur, faker: Faker, count):
+def create_addresses_for_schools(cur, faker: Faker, count):
     final_data = []
     address_id = 1
     for _ in range(count):
@@ -44,8 +44,28 @@ def create_addresses(cur, faker: Faker, count):
         "INSERT INTO Address (id, street, city, state, postal_code, country) VALUES (%s, %s, %s, %s, %s, %s);",
         final_data,
     )
-    return list(range(1, address_id))
+@measure_time
+def create_schools(cur, school_count):
+    school_data = []
+    for i in range(school_count):
+        school_name = f"Школа №{i + 1}"
+        address_id = i + 1
+        school_data.append(
+            (school_name, address_id)
+        )
+    cur.executemany(
+        "INSERT INTO School (name, address_id) VALUES (%s, %s) RETURNING id;",
+        school_data,
+    )
+    cur.execute("""
+                SELECT school.id, address.city, address.state
+                FROM school 
+                JOIN address ON school.address_id = address.id;
+            """)
+    school_id_to_data = {school_id: [city, state] for school_id, city, state in cur.fetchall()}
+    return school_id_to_data
 
+# For subjects
 @measure_time
 def parse_subject_mapping(file_path):
     points = {}
@@ -150,26 +170,6 @@ def create_links_between_tasks_and_variants(cur, task_id_to_task_data_, variant_
         link_data,
     )
 
-@measure_time
-def create_schools(cur, faker: Faker, school_count, address_ids):
-    school_data = []
-    for i in range(school_count):
-        school_name = f"Школа №{i + 1}"
-        address_id = address_ids.pop()
-        school_data.append(
-            (school_name, address_id)
-        )
-    cur.executemany(
-        "INSERT INTO School (name, address_id) VALUES (%s, %s) RETURNING id;",
-        school_data,
-    )
-    cur.execute("""
-                SELECT school.id, address.city, address.state
-                FROM school 
-                JOIN address ON school.address_id = address.id;
-            """)
-    school_id_to_data = {school_id: [city, state] for school_id, city, state in cur.fetchall()}
-    return school_id_to_data
 
 def create_exams(db_config, faker: Faker, school_ids, subject_ids, start, end):
     with psycopg2.connect(**db_config) as conn:
@@ -198,7 +198,6 @@ def create_exams_parallel(db_config, faker: Faker, school_ids, subject_ids, scho
     with Pool(processes=num_processes) as pool:
         chunk_size = school_count // num_processes
         variable_arguments = [(i * chunk_size, (i + 1) * chunk_size) for i in range(num_processes)]
-        print(variable_arguments)
         arguments = ((db_config, faker, school_ids, subject_ids, var_arg1, var_arg2) for var_arg1, var_arg2 in variable_arguments)
         pool.starmap(create_exams, arguments)
 
@@ -299,7 +298,7 @@ def create_school_children(db_config, faker: Faker, school_ids, school_id_to_dat
                 address_id += 1
                 school_children_id += 1
                 if school_child_number % 10000 == 0:
-                    print(f"Teacher number: {school_child_number - start}")
+                    print(f"Schoolchild number: {school_child_number - start}")
                     cur.executemany(
                         "INSERT INTO Address (id, street, city, state, postal_code, country) values (%s, %s, %s, %s, %s, %s);",
                         addresses_data,
@@ -331,7 +330,6 @@ def create_school_children_parallel(db_config, faker: Faker, school_children_cou
         pool.starmap(create_school_children, arguments)
     return list(range(1, school_children_count + 1))
 
-
 def main():
     faker = Faker("ru_RU")
     teacher_count = int(os.getenv('TEACHER_COUNT'))
@@ -349,17 +347,14 @@ def main():
     }
     with psycopg2.connect(**db_config) as conn:
         with conn.cursor() as cur:
-            address_ids = create_addresses(cur, faker, school_count)
+            create_addresses_for_schools(cur, faker, school_count)
+            school_id_to_data = create_schools(cur, school_count)
 
             subjects_points = parse_subject_mapping('subject_data.txt')
             subject_ids, subject_id_to_name = create_subjects(cur, subjects_points)
             variant_id_to_subject_id = create_variants(cur, subject_ids, number_of_variants_per_subject)
             task_ids, task_id_to_task_data = create_tasks(cur, subject_id_to_name, subjects_points, number_of_variants_per_task)
-            create_links_between_tasks_and_variants(
-                cur, task_id_to_task_data, variant_id_to_subject_id, subject_id_to_name, subjects_points
-            )
-
-            school_id_to_data = create_schools(cur, faker, school_count, address_ids)
+            create_links_between_tasks_and_variants(cur, task_id_to_task_data, variant_id_to_subject_id, subject_id_to_name, subjects_points)
 
     create_exams_parallel(db_config, faker, list(school_id_to_data.keys()), subject_ids, school_count, num_processes=5)
     teacher_ids = create_teachers_parallel(db_config, faker, teacher_count, subject_ids, school_id_to_data, school_count + 1, num_processes=5)
