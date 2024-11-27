@@ -13,7 +13,7 @@ def create_addresses_for_schools(cur, faker: Faker, count):
             faker.city_name(),
             faker.administrative_unit(),
             faker.postcode(),
-            faker.country(),
+            "Россия",
         )
         final_data.append(address)
         address_id += 1

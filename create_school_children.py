@@ -91,7 +91,7 @@ def create_school_children(
                     for task_number in range(1, len(subject_id_to_tasks[sub_id]) + 1):
                         task_id = random.choice(task_number_subject_to_ids[task_number, sub_id])
                         written_task_data.append([
-                            random.randint(0, len(subject_id_to_tasks[sub_id][task_number])),
+                            random.randint(0, int(subject_id_to_tasks[sub_id][task_number])),
                             written_work_id,
                             random.choice(subject_id_to_teacher_ids[sub_id]),
                             task_id
