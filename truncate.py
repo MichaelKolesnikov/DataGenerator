@@ -1,18 +1,15 @@
 import psycopg2
+from config import db_config
 
 def truncate():
-    db_config = {
-        'dbname': 'test_db',
-        'user': 'root',
-        'password': 'root',
-        'host': 'localhost',
-        'port': '54320'
-    }
     try:
         conn = psycopg2.connect(**db_config)
         cur = conn.cursor()
 
         tables = [
+            "City",
+            "State",
+            "Country",
             "WrittenTask",
             "WrittenWork",
             "TaskWithVariant",

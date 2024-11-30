@@ -1,10 +1,28 @@
+CREATE TABLE IF NOT EXISTS City (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR
+);
+
+CREATE TABLE IF NOT EXISTS State (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR
+);
+
+CREATE TABLE IF NOT EXISTS Country (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR
+);
+
 CREATE TABLE IF NOT EXISTS Address (
     id SERIAL PRIMARY KEY,
     street VARCHAR,
-    city VARCHAR,
-    state VARCHAR,
+    city_id INT,
+    state_id INT,
     postal_code VARCHAR,
-    country VARCHAR
+    country_id INT,
+    FOREIGN KEY (city_id) REFERENCES City(id),
+    FOREIGN KEY (state_id) REFERENCES State(id),
+    FOREIGN KEY (country_id) REFERENCES Country(id)
 );
 
 CREATE TABLE IF NOT EXISTS School (

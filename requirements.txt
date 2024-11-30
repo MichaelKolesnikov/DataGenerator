@@ -1,0 +1,4 @@
+python-dotenv
+Faker
+psycopg2-binary
+selenium
