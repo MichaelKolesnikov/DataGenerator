@@ -1,0 +1,107 @@
+Table Address {
+  id int [pk, increment]
+  street_name varchar
+  city_id int [ref: > City.id]
+  state_id int [ref: > State.id]
+  postal_code varchar
+  country_id int [ref: > Country.id]
+}
+
+Table City {
+  id int [pk, increment]
+  name varchar
+}
+
+Table State {
+  id int [pk, increment]
+  name varchar
+}
+
+Table Country {
+  id int [pk, increment]
+  name varchar
+}
+
+Table SchoolChild {
+  id int [pk, increment]
+  FullName varchar
+  passport_series_number varchar
+  birthday date
+  school_id int [ref: > School.id]
+  address_id int [ref: > Address.id]
+}
+
+Table SchoolChildWithExam {
+  id int [pk, increment]
+  school_child_id int [ref: > SchoolChild.id]
+  exam_id int [ref: > Exam.id]
+}
+
+Table Exam {
+  id int [pk, increment]
+  TimeDate datetime
+  school_id int [ref: > School.id]
+  subject_id int [ref: > Subject.id]
+}
+
+Table TeacherWithExam {
+  id int [pk, increment]
+  exam_id int [ref: > Exam.id]
+  teacher_id int [ref: > Teacher.id]
+}
+
+Table Teacher {
+  id int [pk, increment]
+  FullName varchar
+  address_id int [ref: > Address.id]
+  school_id int [ref: > School.id]
+  subject_id int [ref: > Subject.id]
+}
+
+Table School {
+  id int [pk, increment]
+  Name varchar
+  address_id int [ref: > Address.id]
+}
+
+Table Subject {
+  id int [pk, increment]
+  Name varchar
+  ScoreMapping_JSON json
+}
+
+Table Variant {
+  id int [pk, increment]
+  Number int
+  subject_id int [ref: > Subject.id]
+}
+
+Table TaskWithVariant {
+  id int [pk, increment]
+  task_id int [ref: > Task.id]
+  variant_id int [ref: > Variant.id]
+}
+
+Table Task {
+  id int [pk, increment]
+  number int
+  description varchar
+  price int
+}
+
+Table WrittenWork {
+  id int [pk, increment]
+  school_child_id int [ref: > SchoolChild.id]
+  variant_id int [ref: > Variant.id]
+}
+
+Table WrittenTask {
+  id int [pk, increment]
+  grade int
+  written_work_id int [ref: > WrittenWork.id]
+  teacher_id int [ref: > Teacher.id]
+  task_id int [ref: > Task.id]
+}
+
+// https://dbdiagram.io/d/EGE-66f534573430cb846cb2c7e7
+
