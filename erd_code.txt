@@ -1,0 +1,56 @@
+# Entities
+[SchoolChild]
+  full_name
+  passport_series_number
+  birthday
+[School]
+  name
+[Teacher]
+  full_name
+[Address]
+  street_name
+  postal_code
+[City]
+name
+[State]
+name
+[Country]
+name
+[WrittenWork]
+[WrittenTask] 
+  grade
+[Variant]
+  number
+[Task]
+  number
+  description
+  price
+[Subject]
+  Name
+  ScoreMapping_JSON
+[Exam]
+  date_time
+# Relationships
+SchoolChild     1--* WrittenWork {label:"wrote"}
+SchoolChild     1--* WrittenTask {label:"wrote"}
+SchoolChild     *--* Variant {label:"have"}
+SchoolChild     *--1 School {label:"learn_in"}
+SchoolChild     *--* Exam {label:"pass"}
+SchoolChild     1--1 Address {label:"live"}
+Teacher         *--1 School {label:"work_in"}
+Teacher         *--* Exam {label:"view"}
+Teacher         *--1 Subject {label:"lead"}
+Teacher         1--* WrittenTask {label:"check"}
+Teacher         1--1 Address {label:"live"}
+Exam            *--1 School {label:"held_in"}
+School          1--1 Address {label:"place"}
+Subject         1--* Exam {label:"define"}
+Subject         1--* Task {label:"define"}
+Subject         1--* Variant {label:"define"}
+Task            *--* Variant {label:"contain in"}
+Task            1--* WrittenTask {label:"define"}
+Variant         1--* WrittenWork {label:"have"}
+WrittenWork     1--* WrittenTask {label:"contain_in"}
+Address         *--1 Country {label:"have"}
+Address         *--1 State {label:"have"}
+Address         *--1 City {label:"have"}
